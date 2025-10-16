@@ -1,5 +1,426 @@
-<code>
-x = 5;
-y = 6;
-z = x + y;
-</code>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goal Race Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --total-time: 1500; /* Default 25 minutes */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Glow effect for finish line trophy */
+        .trophy-glow {
+            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 1));
+        }
+
+        /* Keyframes for a subtle winning bounce */
+        @keyframes bounce-in {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        .animate-win {
+            animation: bounce-in 0.8s ease-in-out;
+        }
+        
+        /* Modal base style */
+        .modal-card {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Specific styles controlled by JS */
+        .modal-win {
+            border-color: #34D399; /* Green-400 */
+        }
+        .modal-fail {
+            border-color: #F87171; /* Red-400 */
+        }
+    </style>
+</head>
+<BODY>
+    <div class="max-w-xl w-full mx-auto">
+        
+        <!-- Header and Controls -->
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-extrabold text-green-400">Goal Race Tracker</h1>
+            <p class="text-gray-400 mt-1">Race your focus against the competition to reach the finish line.</p>
+        </header>
+
+        <!-- Configuration Panel -->
+        <div id="configPanel" class="p-6 bg-gray-800 rounded-xl shadow-lg mb-8">
+            <h2 class="text-xl font-bold mb-3 text-yellow-400">Set Up Race</h2>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="userName" class="block text-sm font-medium text-green-400">Your Name (Green)</label>
+                    <input type="text" id="userName" value="You" class="mt-1 p-2 w-full rounded-lg bg-gray-700 border border-gray-600 focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
+                    <label for="timeGoal" class="block text-sm font-medium text-gray-200">Goal Time</label>
+                    <select id="timeGoal" class="mt-1 p-2 w-full rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-yellow-500 focus:border-yellow-500">
+                        <option value="5">5 min</option>
+                        <option value="10">10 min</option>
+                        <option value="25" selected>25 min</option>
+                        <option value="45">45 min</option>
+                        <option value="60">60 min</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <div>
+                    <label for="opp1Name" class="block text-sm font-medium text-blue-700">Opponent 1 (Blue)</label>
+                    <input type="text" id="opp1Name" value="Runner 1" class="mt-1 p-2 w-full rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 focus:border-Blue-400">
+                </div>
+                <div>
+                    <label for="opp2Name" class="block text-sm font-medium text-red-400">Opponent 2 (Red)</label>
+                    <input type="text" id="opp2Name" value="Runner 2" class="mt-1 p-2 w-full rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 focus:border-red-500">
+                </div>
+                <div>
+                    <label for="opp3Name" class="block text-sm font-medium text-yellow-500">Opponent 3 (yellow)</label>
+                    <input type="text" id="opp3Name" value="Runner 3" class="mt-1 p-2 w-full rounded-lg bg-gray-700 border border-gray-600 focus:ring-red-500 focus:border-yellow-500">
+                </div>
+            </div>
+
+            <button id="startButton" class="w-full px-6 py-3 bg-green-600 hover:bg-green-500 text-gray-900 font-bold rounded-xl transition duration-150 shadow-md hover:shadow-lg disabled:opacity-50" onclick="startRace()">
+                Start Race
+            </button>
+        </div>
+
+        <!-- Timer and Status -->
+        <div class="text-center mb-8">
+            <!-- Timer initially shows total goal time, updates every second -->
+            <p id="timerDisplay" class="text-6xl font-extrabold text-yellow-400 transition-colors duration-500">00:00</p>
+            <p id="statusMessage" class="mt-2 text-xl font-medium text-gray-300 h-6">Configure your race above.</p>
+        </div>
+
+        <!-- Visualization Container -->
+        <div class="relative w-full h-[500px] overflow-hidden bg-black rounded-xl shadow-2xl border border-white-500 p-4">
+            <!-- SVG for Visualization (The Race Track) -->
+            <svg id="raceSvg" viewBox="0 0 400 350" preserveAspectRatio="xMinYMax meet" class="w-full h-full">
+                <!-- Static Finish Line (Y=50) -->
+                <line x1="0" y1="70" x2="400" y2="70" stroke="yellow" stroke-width="3" class="trophy-glow"/>
+                <text x="5" y="60" fill="yellow" font-size="14" font-weight="bold">SUCCESS LINE</text>
+
+                <!-- Trophy at Finish Line -->
+                <g transform="translate(370, 40)" class="trophy-glow">
+                    <path d="M10 0 L15 10 L5 10 Z" fill="gold"/>
+                    <rect x="7" y="10" width="7" height="14" fill="gold"/>
+                </g>
+
+                <!-- Competitor Points (g elements are used for movement) -->
+                
+                <!-- User (Green) -->
+                <g id="user-point" class="competitor-point" transform="translate(50, 300)">
+                    <circle cx="0" cy="0" r="10" fill="#34D399"/>
+                    <text x="0" y="4" fill="#1F2937" font-size="12" font-weight="bold" text-anchor="middle">♠</text>
+                    <!-- Moving label below the point -->
+                    <text x="0" y="25" fill="#34D399" font-size="14" font-weight="bold" text-anchor="middle" id="moving-label-user">You</text>
+                </g>
+
+                <!-- Opponent 1 (Red) -->
+                <g id="opp1-point" class="competitor-point" transform="translate(150, 300)">
+                    <circle cx="0" cy="0" r="10" fill="#F87171"/>
+                    <text x="0" y="4" fill="#1F2937" font-size="12" font-weight="bold" text-anchor="middle">☻</text>
+                    <!-- Moving label below the point -->
+                    <text x="0" y="25" fill="#F87171" font-size="14" font-weight="bold" text-anchor="middle" id="moving-label-opp1">Runner 1</text>
+                </g>
+
+                <!-- Opponent 2 (Red) -->
+                <g id="opp2-point" class="competitor-point" transform="translate(250, 300)">
+                    <circle cx="0" cy="0" r="10" fill="#F87171"/>
+                    <text x="0" y="4" fill="#1F2937" font-size="12" font-weight="bold" text-anchor="middle">☺</text>
+                    <!-- Moving label below the point -->
+                    <text x="0" y="25" fill="#F87171" font-size="14" font-weight="bold" text-anchor="middle" id="moving-label-opp2">Runner 2</text>
+                </g>
+
+                <!-- Opponent 3 (Red) -->
+                <g id="opp3-point" class="competitor-point" transform="translate(350, 300)">
+                    <circle cx="0" cy="0" r="10" fill="#F87171"/>
+                    <text x="0" y="4" fill="#1F2937" font-size="12" font-weight="bold" text-anchor="middle">♣</text>
+                    <!-- Moving label below the point -->
+                    <text x="0" y="25" fill="#F87171" font-size="14" font-weight="bold" text-anchor="middle" id="moving-label-opp3">Runner 3</text>
+                </g>
+            </svg>
+        </div>
+        
+        <!-- Victory Message Modal (Generic styling applied here, specific colors added by JS) -->
+        <div id="victoryModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4" onclick="document.getElementById('victoryModal').classList.add('hidden')">
+            <div id="modalCard" class="bg-gray-800 p-8 rounded-2xl shadow-2xl text-center border-4 modal-card max-w-sm w-full animate-win" onclick="event.stopPropagation()">
+                <div id="modalIcon" class="text-6xl mb-4"></div>
+                <h2 id="modalTitle" class="text-4xl font-extrabold text-green-400 mb-2"></h2>
+                <p id="modalMessage" class="text-xl text-gray-300"></p>
+                <button class="mt-6 px-6 py-3 bg-green-600 hover:bg-green-500 text-gray-900 font-bold rounded-xl transition duration-150" onclick="document.getElementById('victoryModal').classList.add('hidden')">
+                    Start a New Race
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Global state variables
+        let totalSeconds = 0;
+        let elapsedSeconds = 0;
+        let timerInterval = null;
+        let isRunning = false;
+        
+        // Configuration for the SVG race track
+        const MAX_PROGRESS_Y = 300; // SVG Y position for 0% progress (start line)
+        const MIN_PROGRESS_Y = 70;  // SVG Y position for 100% progress (the finish line)
+        const VISUAL_RANGE = MAX_PROGRESS_Y - MIN_PROGRESS_Y; // Total distance to move
+
+        let competitors = [
+            { id: 'user', name: 'You', progress: 0, speed: 1.0, element: null, labelElement: null },
+            { id: 'opp1', name: 'Opponent 1', progress: 0, speed: 0, element: null, labelElement: null },
+            { id: 'opp2', name: 'Opponent 2', progress: 0, speed: 0, element: null, labelElement: null },
+            { id: 'opp3', name: 'Opponent 3', progress: 0, speed: 0, element: null, labelElement: null }
+        ];
+
+        // DOM elements
+        const timeGoalSelect = document.getElementById('timeGoal');
+        const startButton = document.getElementById('startButton');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const statusMessage = document.getElementById('statusMessage');
+        const configPanel = document.getElementById('configPanel');
+        const victoryModal = document.getElementById('victoryModal');
+        const modalCard = document.getElementById('modalCard');
+        const modalIcon = document.getElementById('modalIcon');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        
+        /**
+         * Converts total seconds into MM:SS format.
+         * @param {number} secs - The number of seconds.
+         * @returns {string} Formatted time string.
+         */
+        function formatTime(secs) {
+            const minutes = String(Math.floor(secs / 60)).padStart(2, '0');
+            const seconds = String(secs % 60).padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        }
+
+        /**
+         * Gets a randomized speed for an opponent (e.g., 60% to 95% of the user's speed)
+         * to create dynamic competition, ensuring the user (speed 1.0) can win.
+         * @returns {number} A random speed multiplier (capped below 1.0).
+         */
+        function getRandomSpeed() {
+            // Speed between 0.6 (slower) and 0.95 (almost as fast), ensuring the user's 1.0 speed wins overall.
+            return (Math.random() * (0.95 - 0.6) + 0.6);
+        }
+
+        /**
+         * Resets the application state to prepare for a new goal.
+         */
+        function resetRace() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            elapsedSeconds = 0;
+            startButton.disabled = false;
+            startButton.textContent = 'Start Race';
+            
+            // Set initial time display based on selection
+            const initialMinutes = parseInt(timeGoalSelect.value);
+            totalSeconds = initialMinutes * 60;
+            timerDisplay.textContent = formatTime(totalSeconds);
+            timerDisplay.classList.remove('text-red-400');
+            timerDisplay.classList.add('text-yellow-400');
+            statusMessage.textContent = 'I CAN FINISH IT!!.';
+            
+            // Reset competitor positions and progress
+            for (const comp of competitors) {
+                comp.progress = 0;
+                // Use a standard translate(X, Y) to reset position
+                comp.element?.setAttribute('transform', `translate(${comp.element.transform.baseVal[0].matrix.e}, ${MAX_PROGRESS_Y})`);
+                comp.element?.classList.remove('animate-win');
+            }
+            
+            configPanel.classList.remove('hidden');
+        }
+        
+        /**
+         * Starts the visualization and timer.
+         */
+        function startRace() {
+            if (isRunning) return;
+            
+            const goalMinutes = parseInt(timeGoalSelect.value);
+            totalSeconds = goalMinutes * 60;
+            elapsedSeconds = 0;
+            isRunning = true;
+            
+            // 1. Configure competitors based on input
+            competitors[0].name = document.getElementById('userName').value || 'You';
+            competitors[1].name = document.getElementById('opp1Name').value || 'Opponent 1';
+            competitors[2].name = document.getElementById('opp2Name').value || 'Opponent 2';
+            competitors[3].name = document.getElementById('opp3Name').value || 'Opponent 3';
+
+            // Update moving labels in SVG (inside the g element)
+            document.getElementById('moving-label-user').textContent = competitors[0].name;
+            document.getElementById('moving-label-opp1').textContent = competitors[1].name;
+            document.getElementById('moving-label-opp2').textContent = competitors[2].name;
+            document.getElementById('moving-label-opp3').textContent = competitors[3].name;
+
+            // Assign randomized speeds to opponents
+            competitors[1].speed = getRandomSpeed();
+            competitors[2].speed = getRandomSpeed();
+            competitors[3].speed = getRandomSpeed();
+
+            // Disable controls and update status
+            startButton.disabled = true;
+            configPanel.classList.add('hidden'); // Hide configuration during race
+            statusMessage.textContent = `Race to ${formatTime(totalSeconds)}!`;
+
+            // Initialize the starting state
+            updateVisualization();
+
+            // Start the main timer loop
+            timerInterval = setInterval(() => {
+                elapsedSeconds++;
+                const remainingSeconds = totalSeconds - elapsedSeconds;
+                
+                updateVisualization();
+                
+                // Check if user reached the finish line (100% progress)
+                if (competitors[0].progress >= 1.0) {
+                    raceComplete(true);
+                    return;
+                }
+
+                // If time runs out and user hasn't won, trigger loss state
+                if (elapsedSeconds >= totalSeconds) {
+                    raceComplete(false); 
+                    return;
+                }
+
+                // Visual cue for low time
+                if (remainingSeconds <= 30 && remainingSeconds > 0) {
+                    timerDisplay.classList.add('text-red-400');
+                    timerDisplay.classList.remove('text-yellow-400');
+                }
+            }, 1000);
+        }
+
+        /**
+         * Updates the timer display and competitor positions.
+         */
+        function updateVisualization() {
+            // 1. Update Timer Display
+            const remainingSeconds = totalSeconds - elapsedSeconds;
+            timerDisplay.textContent = formatTime(remainingSeconds);
+
+            // 2. Calculate Progress and Update Positions
+            const timeRatio = elapsedSeconds / totalSeconds;
+            
+            for (const comp of competitors) {
+                // Get the point's X position (which is constant in the graph)
+                const pointX = comp.element.transform.baseVal[0].matrix.e;
+
+                // User movement is always linear
+                if (comp.id === 'user') {
+                    comp.progress = Math.min(1.0, timeRatio);
+                    let finalYPos = MAX_PROGRESS_Y - (comp.progress * VISUAL_RANGE);
+                    finalYPos = Math.max(finalYPos, MIN_PROGRESS_Y); 
+                    comp.element.setAttribute('transform', `translate(${pointX}, ${finalYPos})`);
+                } else {
+                    // Opponent progress is linear speed against time, capped at 1.0
+                    comp.progress = Math.min(1.0, timeRatio * comp.speed);
+
+                    // Calculate linear vertical position based on overall progress
+                    const linearYPos = MAX_PROGRESS_Y - (comp.progress * VISUAL_RANGE);
+                    
+                    // Add forward/backward fluctuation for opponents (simulating distraction)
+                    const fluctuation = Math.sin(elapsedSeconds * comp.speed * 0.8) * 8; 
+                    let fluctuatingYPos = linearYPos + fluctuation; 
+                    
+                    // Get the opponent's current visual Y position 
+                    let currentVisualY = MAX_PROGRESS_Y;
+                    if (comp.element.transform.baseVal.numberOfItems > 0) {
+                        currentVisualY = comp.element.transform.baseVal[0].matrix.f;
+                    }
+                    
+                    // --- NON-REGRESSION CLAMP ---
+                    // Enforce that the new Y position must be less than or equal to the current Y position (Y decreases as point moves up).
+                    let finalYPos = Math.min(currentVisualY, fluctuatingYPos);
+
+                    // Cap at finish line (MIN_PROGRESS_Y is the highest point, Y=70)
+                    finalYPos = Math.max(finalYPos, MIN_PROGRESS_Y); 
+
+                    // Update SVG point position: translate(X, Y)
+                    comp.element.setAttribute('transform', `translate(${pointX}, ${finalYPos})`);
+                }
+            }
+        }
+        
+        /**
+         * Handles the state when the race timer completes or goal is met.
+         * @param {boolean} [userWon=true] - Did the user successfully reach 100% progress?
+         */
+        function raceComplete(userWon) {
+            if (!isRunning) return; // Prevent double-triggering
+            
+            clearInterval(timerInterval);
+            isRunning = false;
+            
+            const userComp = competitors[0];
+            const pointX = userComp.element.transform.baseVal[0].matrix.e;
+
+            // 1. Set Final Visual Position for User
+            // Ensures the user point lands exactly on the finish line (Y=70) if they won.
+            const finalUserY = userWon ? MIN_PROGRESS_Y : userComp.element.transform.baseVal[0].matrix.f;
+            userComp.element.setAttribute('transform', `translate(${pointX}, ${finalUserY})`);
+            
+            // 2. Configure Modal based on outcome
+            if (userWon) {
+                // WIN STATE
+                modalCard.classList.remove('modal-fail');
+                modalCard.classList.add('modal-win');
+                modalIcon.textContent = "🏆";
+                modalTitle.textContent = "Congratulations!";
+                modalMessage.textContent = `You achieved your focus goal in ${formatTime(elapsedSeconds)}! You beat the clock and crushed your distractions.`;
+                userComp.element.classList.add('animate-win');
+                statusMessage.textContent = 'Goal achieved! Well done!';
+
+            } else {
+                // LOSS/TIME UP STATE
+                modalCard.classList.remove('modal-win');
+                modalCard.classList.add('modal-fail');
+                modalIcon.textContent = "⏱️";
+                modalTitle.textContent = "TIME'S UP!";
+                
+                const progressPercent = Math.round(userComp.progress * 100);
+                modalMessage.textContent = `You ran out of time! You made ${progressPercent}% progress toward your goal. Try again!`;
+                statusMessage.textContent = 'Race failed. Try a shorter time goal?';
+            }
+            
+            // 3. Display Modal
+            victoryModal.classList.remove('hidden');
+
+            // Reset after a short delay
+            setTimeout(resetRace, 500);
+        }
+        
+        // Set up initial state and element references when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Store references to the SVG moving elements
+            competitors[0].element = document.getElementById('user-point');
+            competitors[1].element = document.getElementById('opp1-point');
+            competitors[2].element = document.getElementById('opp2-point');
+            competitors[3].element = document.getElementById('opp3-point');
+
+            // Attach event listener to reset when a new time goal is selected
+            timeGoalSelect.addEventListener('change', resetRace);
+            
+            // Initial setup
+            resetRace();
+        });
+    </script>
+</body>
+</html>
